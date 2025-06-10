@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\GoogleDriveController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,6 +15,32 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::get('/', function ()
+{
+    return view('welcome');
+});
 
-Route::get('/', [App\Http\Controllers\GoogleDriveController::class, 'index'])->name('google-drive.index');
-Route::post('/google-drive/upload', [App\Http\Controllers\GoogleDriveController::class, 'upload'])->name('google-drive.upload');
+Route::get('/dashboard', function ()
+{
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function ()
+{
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Google Drive Routes
+    Route::get('/google-drive', [GoogleDriveController::class, 'index'])->name('google-drive.index');
+    Route::post('/google-drive/upload', [GoogleDriveController::class, 'upload'])->name('google-drive.upload');
+});
+
+Route::middleware(['auth', 'admin'])->group(function ()
+{
+    Route::get('/users', [App\Http\Controllers\UserController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [App\Http\Controllers\UserController::class, 'create'])->name('users.create');
+    Route::post('/users', [App\Http\Controllers\UserController::class, 'store'])->name('users.store');
+});
+
+require __DIR__ . '/auth.php';

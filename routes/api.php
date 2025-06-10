@@ -19,7 +19,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request)
   return $request->user();
 });
 
-Route::get('/files', [\App\Http\Controllers\GoogleDriveController::class, 'index'])
-  ->name('files.index');
-Route::get('/debugDrive', [\App\Http\Controllers\GoogleDriveController::class, 'debugDrive'])
-  ->name('files.debugDrive');
+

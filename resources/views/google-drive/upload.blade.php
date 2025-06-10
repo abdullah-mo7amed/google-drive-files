@@ -1,54 +1,57 @@
-<!DOCTYPE html>
-<html lang="en">
+<x-app-layout>
+  <x-slot name="header">
+    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+      {{ __('Google Drive Upload') }}
+    </h2>
+  </x-slot>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google Drive Upload</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body>
-  <div class="container mt-5">
-    <div class="row justify-content-center">
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="text-center">Google Drive Upload</h3>
+  <div class="py-12">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+        <div class="p-6 text-gray-900">
+          @if(session('success'))
+          <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline">{{ session('success') }}</span>
           </div>
-          <div class="card-body">
-            @if(session('success'))
-            <div class="alert alert-success">
-              {{ session('success') }}
+          @endif
+
+          @if(session('error'))
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline">{{ session('error') }}</span>
+          </div>
+          @endif
+
+          <form method="POST" action="{{ route('google-drive.upload') }}" class="space-y-6">
+            @csrf
+            <div>
+              <x-input-label for="webinar_id" :value="__('Webinar ID')" />
+              <x-text-input id="webinar_id" name="webinar_id" type="number" class="mt-1 block w-full" :value="old('webinar_id')" required />
+              <p class="mt-1 text-sm text-gray-500">Insert the Webinar ID</p>
+              <x-input-error class="mt-2" :messages="$errors->get('webinar_id')" />
+            </div>
+
+            <div>
+              <x-input-label for="folder_id" :value="__('Google Drive Folder ID')" />
+              <x-text-input id="folder_id" name="folder_id" type="text" class="mt-1 block w-full" :value="old('folder_id')" required />
+              <p class="mt-1 text-sm text-gray-500">Insert the Google Drive Folder ID</p>
+              <x-input-error class="mt-2" :messages="$errors->get('folder_id')" />
+            </div>
+
+            @if(auth()->user()->is_admin)
+            <div>
+              <x-input-label for="api_url" :value="__('API URL')" />
+              <x-text-input id="api_url" name="api_url" type="url" class="mt-1 block w-full" :value="old('api_url')" />
+              <p class="mt-1 text-sm text-gray-500">Insert the API URL if you are an admin</p>
+              <x-input-error class="mt-2" :messages="$errors->get('api_url')" />
             </div>
             @endif
 
-            @if(session('error'))
-            <div class="alert alert-danger">
-              {{ session('error') }}
+            <div class="flex items-center gap-4">
+              <x-primary-button>{{ __('Upload Files') }}</x-primary-button>
             </div>
-            @endif
-
-            <form action="{{ route('google-drive.upload') }}" method="POST">
-              @csrf
-              <div class="mb-3">
-                <label for="webinar_id" class="form-label">Webinar ID</label>
-                <input type="number" class="form-control" id="webinar_id" name="webinar_id" required>
-              </div>
-              <div class="mb-3">
-                <label for="folder_id" class="form-label">Google Drive Folder ID</label>
-                <input type="text" class="form-control" id="folder_id" name="folder_id" required>
-              </div>
-              <div class="d-grid">
-                <button type="submit" class="btn btn-primary">Upload Files</button>
-              </div>
-            </form>
-          </div>
+          </form>
         </div>
       </div>
     </div>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-
-</html>
+</x-app-layout>
