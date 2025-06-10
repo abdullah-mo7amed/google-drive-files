@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use Google\Client as GoogleClient;
@@ -7,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 
 class GoogleDriveController extends Controller
 {
@@ -25,46 +27,60 @@ class GoogleDriveController extends Controller
 
     public function index()
     {
-        $rootFolderId = config('filesystems.disks.google.folder');
+        return view('google-drive.upload');
+    }
 
-        $tree = $this->getFolderTree($rootFolderId);
-        $this->syncToApp($tree);
-
-        return response()->json([
-            'status'   => 'ok',
-            'synced'   => true,
-            'children' => $tree,
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'webinar_id' => 'required|integer',
+            'folder_id' => 'required|string'
         ]);
+
+        try
+        {
+            $tree = $this->getFolderTree($request->folder_id);
+            $this->syncToApp($tree, null, $request->webinar_id);
+            return redirect()->back()->with('success', 'Files uploaded successfully!');
+        }
+        catch (\Exception $e)
+        {
+            return redirect()->back()->with('error', 'Error uploading files: ' . $e->getMessage());
+        }
     }
 
     private function getFolderTree(string $parentId): array
     {
-        $acc       = [];
+        $acc = [];
         $pageToken = null;
 
-        do {
+        do
+        {
             $response = $this->driveService->files->listFiles([
-                // نطلب حقول view و content و امتداد الملف
-                'q'         => "'{$parentId}' in parents and trashed = false",
-                'fields'    => 'nextPageToken, files(id, name, mimeType, size, webContentLink, webViewLink, fileExtension)',
-                'pageSize'  => 100,
+                'q' => "'{$parentId}' in parents and trashed = false",
+                'fields' => 'nextPageToken, files(id, name, mimeType, size, webContentLink, webViewLink, fileExtension)',
+                'pageSize' => 100,
                 'pageToken' => $pageToken,
             ]);
 
-            foreach ($response->getFiles() as $file) {
+            foreach ($response->getFiles() as $file)
+            {
                 $item = [
-                    'id'       => $file->getId(),
-                    'name'     => $file->getName(),
+                    'id' => $file->getId(),
+                    'name' => $file->getName(),
                     'mimeType' => $file->getMimeType(),
                 ];
 
-                if ($file->getMimeType() === 'application/vnd.google-apps.folder') {
+                if ($file->getMimeType() === 'application/vnd.google-apps.folder')
+                {
                     $item['children'] = $this->getFolderTree($file->getId());
-                } else {
-                    $item['size']        = (int) $file->getSize();     // بالبايت
-                    $item['downloadUrl'] = $file->getWebContentLink(); // رابط التحميل
-                    $item['viewUrl']     = $file->getWebViewLink();    // رابط العرض
-                    $item['fileType']    = $file->getFileExtension() ?: pathinfo($file->getName(), PATHINFO_EXTENSION);
+                }
+                else
+                {
+                    $item['size'] = (int) $file->getSize();
+                    $item['downloadUrl'] = $file->getWebContentLink();
+                    $item['viewUrl'] = $file->getWebViewLink();
+                    $item['fileType'] = $file->getFileExtension() ?: pathinfo($file->getName(), PATHINFO_EXTENSION);
                 }
 
                 $acc[] = $item;
@@ -76,58 +92,57 @@ class GoogleDriveController extends Controller
         return $acc;
     }
 
-    protected function syncToApp(array $items, int $parentChapterId = null): void
+    protected function syncToApp(array $items, ?int $parentChapterId = null, int $webinarId): void
     {
-        foreach ($items as $item) {
-            if ($item['mimeType'] === 'application/vnd.google-apps.folder') {
-                // تنشئة القسم (Chapter)
-                $chapResp = Http::withHeader('x-api-key', '5612')
+        foreach ($items as $item)
+        {
+            if ($item['mimeType'] === 'application/vnd.google-apps.folder')
+            {
+                $chapResp = Http::withHeader('x-api-key', '5612')->timeout(60)
                     ->post('https://appmawso3aonline.anmka.com/api/chapters/store', [
                         'title' => $item['name'],
+                        'webinar_id' => $webinarId,
                     ]);
 
-                Log::info('Chapter create response:', $chapResp->json());
                 $chapterId = $chapResp->json()['id'] ?? null;
-                if (! $chapterId) {
-                    Log::warning("Failed to create chapter “{$item['name']}”");
+                if (!$chapterId)
+                {
                     continue;
                 }
 
-                if (! empty($item['children'])) {
-                    $this->syncToApp($item['children'], $chapterId);
+                if (!empty($item['children']))
+                {
+                    $this->syncToApp($item['children'], $chapterId, $webinarId);
                 }
-
-            } else {
-                if (! $parentChapterId) {
-                    Log::warning("Skipping file “{$item['name']}” because no chapter ID was provided.");
+            }
+            else
+            {
+                if (!$parentChapterId)
+                {
+                    Log::warning("Skipping file \"{$item['name']}\" because no chapter ID was provided.");
                     continue;
                 }
 
-                // تحويل الحجم من بايت إلى ميغابايت مع تقريب لمرتين عشرية
                 $volumeMb = round(($item['size'] ?? 0) / 1024 / 1024, 2);
 
-                // إذا كان الفيديو، نجعل file_type=video وإلا نترك الامتداد
                 $fileType = Str::startsWith($item['mimeType'], 'video/')
-                ? 'video'
-                : $item['fileType'];
+                    ? 'video'
+                    : $item['fileType'];
 
                 $filePayload = [
-                    'webinar_id'    => 2039,
-                    'chapter_id'    => $parentChapterId,
-                    'title'         => $item['name'],
-                    'file_path'     => $item['viewUrl'], // سيعالج كملف google_drive
-                    'storage'       => 'google_drive',
-                    'file_type'     => $fileType,
-                    'volume'        => $volumeMb,
+                    'webinar_id' => $webinarId,
+                    'chapter_id' => $parentChapterId,
+                    'title' => $item['name'],
+                    'file_path' => $item['viewUrl'],
+                    'storage' => 'google_drive',
+                    'file_type' => $fileType,
+                    'volume' => $volumeMb,
                     'accessibility' => 'free',
-                    'description'   => '', // أو تحط وصف لو عندك
+                    'description' => '',
                 ];
 
-                Log::info('Sending file payload:', $filePayload);
-                $fileResp = Http::withHeader('x-api-key', '5612')
+                Http::withHeader('x-api-key', '5612')->timeout(60)
                     ->post('https://appmawso3aonline.anmka.com/api/files/store', $filePayload);
-
-                Log::info('File create response:', $fileResp->json());
             }
         }
     }

@@ -13,6 +13,6 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+
+Route::get('/', [App\Http\Controllers\GoogleDriveController::class, 'index'])->name('google-drive.index');
+Route::post('/google-drive/upload', [App\Http\Controllers\GoogleDriveController::class, 'upload'])->name('google-drive.upload');

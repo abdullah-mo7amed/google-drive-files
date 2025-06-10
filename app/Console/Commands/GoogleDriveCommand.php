@@ -15,8 +15,8 @@ class GoogleDriveCommand extends Command
     protected $description = 'Upload files from Google Drive to the app';
 
     protected GoogleServiceDrive $driveService;
-    protected $webinarId = 2046;
-    protected $folderId = '1Zy6dflIKaTWh9l79GFKhS5bE3e1ptoPL';
+    public $webinarId;
+    public $folderId;
 
     public function handle()
     {
