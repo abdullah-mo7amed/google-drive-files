@@ -94,12 +94,13 @@ class GoogleDriveController extends Controller
 
     protected function syncToApp(array $items, ?int $parentChapterId = null, int $webinarId): void
     {
+        $baseUrl = env('API_URL');
         foreach ($items as $item)
         {
             if ($item['mimeType'] === 'application/vnd.google-apps.folder')
             {
                 $chapResp = Http::withHeader('x-api-key', '5612')->timeout(60)
-                    ->post('https://appmawso3aonline.anmka.com/api/chapters/store', [
+                    ->post($baseUrl . '/chapters/store/google-drive', [
                         'title' => $item['name'],
                         'webinar_id' => $webinarId,
                     ]);
@@ -142,7 +143,7 @@ class GoogleDriveController extends Controller
                 ];
 
                 Http::withHeader('x-api-key', '5612')->timeout(60)
-                    ->post('https://appmawso3aonline.anmka.com/api/files/store', $filePayload);
+                    ->post($baseUrl . '/files/store/google-drive', $filePayload);
             }
         }
     }
